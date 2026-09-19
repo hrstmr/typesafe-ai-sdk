@@ -50,6 +50,30 @@ public sealed class TypeSafeClient : IDisposable
         _http = httpClient ?? new HttpClient { Timeout = System.Threading.Timeout.InfiniteTimeSpan };
     }
 
+    /// <summary>
+    /// Asks the questions declared by <typeparamref name="TQuestions"/> — one property per question, typed
+    /// <see cref="NoulAnswer"/>, <see cref="ChoiceAnswer{TEnum}"/> or <see cref="ScoreAnswer{TEnum}"/> — and
+    /// returns the same record with every property populated. The instance passed in is only used to infer
+    /// the type; its contents are ignored.
+    /// </summary>
+    public async Task<SystemOneResult<TQuestions>> SystemOneAsync<TState, TQuestions>(
+        TState state,
+        TQuestions questions,
+        string? model = null,
+        CancellationToken cancellationToken = default
+    )
+        where TQuestions : class
+    {
+        var result = await SystemOneAsync(state, QuestionSchema.Build(typeof(TQuestions)), model, cancellationToken).ConfigureAwait(false);
+
+        return new SystemOneResult<TQuestions>
+        {
+            Model = result.Model,
+            Usage = result.Usage,
+            Answers = (TQuestions)QuestionSchema.Bind(typeof(TQuestions), result.Answers),
+        };
+    }
+
     public async Task<SystemOneResult> SystemOneAsync<TState>(
         TState state,
         IReadOnlyCollection<Question> questions,
