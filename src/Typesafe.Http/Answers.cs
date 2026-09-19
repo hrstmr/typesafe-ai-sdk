@@ -15,37 +15,38 @@ public abstract record Answer;
 public sealed record NoulAnswer : Answer
 {
     [JsonPropertyName("noul")]
-    public required double Noul { get; init; }
+    public required decimal Noul { get; init; }
 }
 
+/// <summary>Choice answer as it arrives on the wire, keyed by label. See <see cref="ChoiceAnswer{TEnum}"/> for the enum-typed form.</summary>
 public sealed record ChoiceAnswer : Answer
 {
-    /// <summary>The selected label, one of the keys of the question's criteria.</summary>
     [JsonPropertyName("choice")]
     public required string Choice { get; init; }
 
     [JsonPropertyName("confidence")]
-    public required double Confidence { get; init; }
+    public required decimal Confidence { get; init; }
 
     [JsonPropertyName("probabilities")]
-    public required IReadOnlyDictionary<string, double> Probabilities { get; init; }
+    public required IReadOnlyDictionary<string, decimal> Probabilities { get; init; }
 }
 
+/// <summary>Score answer as it arrives on the wire, keyed by rubric index. See <see cref="ScoreAnswer{TEnum}"/> for the enum-typed form.</summary>
 public sealed record ScoreAnswer : Answer
 {
     /// <summary>Position on the rubric. Fractional, because it is a probability-weighted mean.</summary>
     [JsonPropertyName("score")]
-    public required double Score { get; init; }
+    public required decimal Score { get; init; }
 
     [JsonPropertyName("confidence")]
-    public required double Confidence { get; init; }
+    public required decimal Confidence { get; init; }
 
     /// <summary>Rubric index to its description, echoed back so a score can be reported in words.</summary>
     [JsonPropertyName("legend")]
     public required IReadOnlyDictionary<int, string> Legend { get; init; }
 
     [JsonPropertyName("probabilities")]
-    public required IReadOnlyDictionary<int, double> Probabilities { get; init; }
+    public required IReadOnlyDictionary<int, decimal> Probabilities { get; init; }
 }
 
 public sealed record Usage
@@ -94,4 +95,16 @@ public sealed record SystemOneResult
                 $"Answer '{question.Name}' came back as {answer.GetType().Name}, which does not match the question asked."
             );
     }
+}
+
+/// <summary>Result of a schema-based call, carrying the answers bound onto <typeparamref name="TQuestions"/>.</summary>
+public sealed record SystemOneResult<TQuestions>
+    where TQuestions : class
+{
+    public required string Model { get; init; }
+
+    /// <summary>The questions record, with every property populated by its answer.</summary>
+    public required TQuestions Answers { get; init; }
+
+    public required Usage Usage { get; init; }
 }
