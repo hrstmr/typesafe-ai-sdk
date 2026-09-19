@@ -75,10 +75,10 @@ public class SystemOneTests
         var result = await client.SystemOneAsync(new Ticket("Charged twice", "Two charges this month."), [isBilling, sentiment, urgency]);
 
         Assert.Equal("jev-latest", result.Model);
-        Assert.Equal(0.93, result[isBilling].Noul);
+        Assert.Equal(0.93m, result[isBilling].Noul);
         Assert.Equal("frustrated", result[sentiment].Choice);
-        Assert.Equal(0.81, result[sentiment].Probabilities["frustrated"]);
-        Assert.Equal(1.7, result[urgency].Score);
+        Assert.Equal(0.81m, result[sentiment].Probabilities["frustrated"]);
+        Assert.Equal(1.7m, result[urgency].Score);
         Assert.Equal("today", result[urgency].Legend[1]);
         Assert.Equal(120, result.Usage.InputTokens);
         Assert.Equal(45, result.Usage.OutputTokens);

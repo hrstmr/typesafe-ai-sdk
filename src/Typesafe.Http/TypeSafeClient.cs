@@ -53,8 +53,8 @@ public sealed class TypeSafeClient : IDisposable
     /// <summary>
     /// Asks the questions declared by <typeparamref name="TQuestions"/> — one property per question, typed
     /// <see cref="NoulAnswer"/>, <see cref="ChoiceAnswer{TEnum}"/> or <see cref="ScoreAnswer{TEnum}"/> — and
-    /// returns the same record with every property populated. The instance passed in is only used to infer
-    /// the type; its contents are ignored.
+    /// returns the same record with every property populated. The instance passed in only carries the type;
+    /// its contents are ignored, so <c>new TicketQuestions(default!, default!)</c> is the idiomatic call.
     /// </summary>
     public async Task<SystemOneResult<TQuestions>> SystemOneAsync<TState, TQuestions>(
         TState state,
@@ -64,7 +64,7 @@ public sealed class TypeSafeClient : IDisposable
     )
         where TQuestions : class
     {
-        var result = await SystemOneAsync(state, QuestionSchema.Build(typeof(TQuestions)), model, cancellationToken).ConfigureAwait(false);
+        var result = await SendAsync(state, QuestionSchema.Build(typeof(TQuestions)), model, cancellationToken).ConfigureAwait(false);
 
         return new SystemOneResult<TQuestions>
         {
@@ -74,11 +74,27 @@ public sealed class TypeSafeClient : IDisposable
         };
     }
 
-    public async Task<SystemOneResult> SystemOneAsync<TState>(
+    /// <summary>Asks a set of questions built at runtime, and returns answers indexed by those question objects.</summary>
+    public Task<SystemOneResult> SystemOneAsync<TState>(
         TState state,
         IReadOnlyCollection<Question> questions,
         string? model = null,
         CancellationToken cancellationToken = default
+    ) => SendAsync(state, questions, model, cancellationToken);
+
+    public void Dispose()
+    {
+        if (_ownsHttpClient)
+        {
+            _http.Dispose();
+        }
+    }
+
+    private async Task<SystemOneResult> SendAsync<TState>(
+        TState state,
+        IReadOnlyCollection<Question> questions,
+        string? model,
+        CancellationToken cancellationToken
     )
     {
         ArgumentNullException.ThrowIfNull(questions);
@@ -150,14 +166,6 @@ public sealed class TypeSafeClient : IDisposable
         catch (JsonException exception)
         {
             throw new TypeSafeException("The API returned a response this SDK could not read.", exception);
-        }
-    }
-
-    public void Dispose()
-    {
-        if (_ownsHttpClient)
-        {
-            _http.Dispose();
         }
     }
 }
