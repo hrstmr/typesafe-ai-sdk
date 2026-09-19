@@ -37,11 +37,19 @@ internal enum TestUrgency
     RightNow = 9,
 }
 
-internal sealed record TicketQuestions(
-    [property: Description("Is this ticket about billing?")] NoulAnswer isBilling,
-    ChoiceAnswer<TestSentiment> sentiment,
-    ScoreAnswer<TestUrgency> urgency
-);
+internal sealed record TicketQuestions(NoulAnswer isBilling, ChoiceAnswer<TestSentiment> sentiment, ScoreAnswer<TestUrgency> urgency)
+{
+    /// <summary>Instructions live on the instance; sentiment and urgency fall back to their enum's [Description].</summary>
+    public static TicketQuestions Declared =>
+        new(
+            isBilling: new(
+                instruction: "Is this ticket about billing?",
+                new(isTrueWhen: "Has billing info", isFalseWhen: "does not have billing info")
+            ),
+            sentiment: default!,
+            urgency: default!
+        );
+}
 
 internal sealed record UnsupportedQuestions(string notAQuestion);
 
@@ -83,7 +91,7 @@ public class SchemaTests
     {
         var (client, _) = Stub();
 
-        var response = await client.SystemOneAsync(new Ticket("Charged twice", "Two charges."), new TicketQuestions(default!, default!, default!));
+        var response = await client.SystemOneAsync(new Ticket("Charged twice", "Two charges."), TicketQuestions.Declared);
         var answers = response.Answers;
 
         Assert.Equal(0.93m, answers.isBilling.Noul);
@@ -99,7 +107,7 @@ public class SchemaTests
     {
         var (client, _) = Stub();
 
-        var response = await client.SystemOneAsync<object?, TicketQuestions>(null, new(default!, default!, default!));
+        var response = await client.SystemOneAsync<object?, TicketQuestions>(null, TicketQuestions.Declared);
 
         // Index 2 is the third declared member (Today = 5), not the member whose value is 2.
         Assert.Equal(TestUrgency.Today, response.Answers.urgency.HighestProbability);
@@ -113,7 +121,7 @@ public class SchemaTests
     {
         var (client, _) = Stub();
 
-        var response = await client.SystemOneAsync<object?, TicketQuestions>(null, new(default!, default!, default!));
+        var response = await client.SystemOneAsync<object?, TicketQuestions>(null, TicketQuestions.Declared);
 
         Assert.Equal(TestSentiment.Frustrated, response.Answers.sentiment.HighestProbability);
     }
@@ -135,7 +143,7 @@ public class SchemaTests
         var (client, _) = Stub(body);
 
         var thrown = await Assert.ThrowsAsync<TypeSafeException>(() =>
-            client.SystemOneAsync<object?, TicketQuestions>(null, new(default!, default!, default!))
+            client.SystemOneAsync<object?, TicketQuestions>(null, TicketQuestions.Declared)
         );
 
         Assert.Contains("Bewildered", thrown.Message);
@@ -157,7 +165,7 @@ public class SchemaTests
     {
         var (client, handler) = Stub();
 
-        await client.SystemOneAsync(new Ticket("Charged twice this month", "Two charges of $49."), new TicketQuestions(default!, default!, default!));
+        await client.SystemOneAsync(new Ticket("Charged twice this month", "Two charges of $49."), TicketQuestions.Declared);
 
         Snapshot.Match(
             JsonSerializer.Serialize(
@@ -172,7 +180,7 @@ public class SchemaTests
     {
         var (client, _) = Stub();
 
-        var response = await client.SystemOneAsync<object?, TicketQuestions>(null, new(default!, default!, default!));
+        var response = await client.SystemOneAsync<object?, TicketQuestions>(null, TicketQuestions.Declared);
 
         Snapshot.Match(response);
     }

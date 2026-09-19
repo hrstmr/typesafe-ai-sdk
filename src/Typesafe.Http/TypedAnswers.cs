@@ -1,12 +1,32 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Typesafe.Http;
 
 /// <summary>
-/// A choice answer whose labels are the members of <typeparamref name="TEnum"/>.
-/// Declare one of these on a questions record to ask a choice question.
+/// Implemented by every type that can stand in for a question on a questions record, so the
+/// schema reader can pull the instruction off the instance the caller supplied.
 /// </summary>
-public sealed record ChoiceAnswer<TEnum>
+internal interface IQuestionDeclaration
+{
+    string? Instruction { get; }
+}
+
+/// <summary>
+/// A choice answer whose labels are the members of <typeparamref name="TEnum"/>, each described by
+/// a <see cref="System.ComponentModel.DescriptionAttribute"/> on the member.
+/// </summary>
+public sealed record ChoiceAnswer<TEnum> : IQuestionDeclaration
     where TEnum : struct, Enum
 {
+    public ChoiceAnswer() { }
+
+    /// <summary>Declares the question. The answer properties stay unset until the response is bound.</summary>
+    [SetsRequiredMembers]
+    public ChoiceAnswer(string? instruction) => Instruction = instruction;
+
+    /// <summary>What to ask. Falls back to a [Description] on <typeparamref name="TEnum"/> when null.</summary>
+    public string? Instruction { get; init; }
+
     public required TEnum Choice { get; init; }
 
     public required decimal Confidence { get; init; }
@@ -18,12 +38,21 @@ public sealed record ChoiceAnswer<TEnum>
 }
 
 /// <summary>
-/// A score answer whose rubric is the members of <typeparamref name="TEnum"/>, lowest first.
-/// Declare one of these on a questions record to ask a score question.
+/// A score answer whose rubric is the members of <typeparamref name="TEnum"/> in declaration order,
+/// lowest first, each described by a <see cref="System.ComponentModel.DescriptionAttribute"/>.
 /// </summary>
-public sealed record ScoreAnswer<TEnum>
+public sealed record ScoreAnswer<TEnum> : IQuestionDeclaration
     where TEnum : struct, Enum
 {
+    public ScoreAnswer() { }
+
+    /// <summary>Declares the question. The answer properties stay unset until the response is bound.</summary>
+    [SetsRequiredMembers]
+    public ScoreAnswer(string? instruction) => Instruction = instruction;
+
+    /// <summary>What to ask. Falls back to a [Description] on <typeparamref name="TEnum"/> when null.</summary>
+    public string? Instruction { get; init; }
+
     /// <summary>Position on the rubric. Fractional, because it is a probability-weighted mean.</summary>
     public required decimal Score { get; init; }
 

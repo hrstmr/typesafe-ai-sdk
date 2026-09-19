@@ -51,10 +51,10 @@ public class QuestionTests
     {
         Assert.Null(Question.Noul("isBilling", "About billing?").Criteria);
 
-        var described = Question.Noul("isBilling", "About billing?", whenTrue: "yes it is");
+        var described = Question.Noul("isBilling", "About billing?", new NoulCriteria(isTrueWhen: "yes it is"));
 
-        Assert.Equal("yes it is", described.Criteria!.True);
-        Assert.Null(described.Criteria.False);
+        Assert.Equal("yes it is", described.Criteria!.IsTrueWhen);
+        Assert.Null(described.Criteria.IsFalseWhen);
     }
 }
 

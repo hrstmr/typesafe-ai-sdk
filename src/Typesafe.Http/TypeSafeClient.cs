@@ -64,7 +64,9 @@ public sealed class TypeSafeClient : IDisposable
     )
         where TQuestions : class
     {
-        var result = await SendAsync(state, QuestionSchema.Build(typeof(TQuestions)), model, cancellationToken).ConfigureAwait(false);
+        ArgumentNullException.ThrowIfNull(questions);
+
+        var result = await SendAsync(state, QuestionSchema.Build(questions), model, cancellationToken).ConfigureAwait(false);
 
         return new SystemOneResult<TQuestions>
         {

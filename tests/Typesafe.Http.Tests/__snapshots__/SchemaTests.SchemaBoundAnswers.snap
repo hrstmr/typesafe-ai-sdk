@@ -2,9 +2,12 @@
   "Model": "jev-latest",
   "Answers": {
     "isBilling": {
+      "Instruction": null,
+      "Criteria": null,
       "Noul": 0.93
     },
     "sentiment": {
+      "Instruction": null,
       "Choice": "Frustrated",
       "Confidence": 0.81,
       "Probabilities": {
@@ -15,6 +18,7 @@
       "HighestProbability": "Frustrated"
     },
     "urgency": {
+      "Instruction": null,
       "Score": 1.7,
       "Confidence": 0.62,
       "Legend": {

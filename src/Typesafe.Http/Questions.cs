@@ -27,8 +27,7 @@ public abstract class Question
     [JsonPropertyName("instructions")]
     public string? Instructions { get; }
 
-    public static NoulQuestion Noul(string name, string? instructions = null, string? whenTrue = null, string? whenFalse = null) =>
-        new(name, instructions, whenTrue, whenFalse);
+    public static NoulQuestion Noul(string name, string? instructions = null, NoulCriteria? criteria = null) => new(name, instructions, criteria);
 
     public static ChoiceQuestion Choice(string name, string? instructions, params string[] labels) =>
         new(name, instructions, labels.ToDictionary(label => label, _ => (string?)null));
@@ -42,19 +41,24 @@ public abstract class Question
 /// <summary>Descriptions of what each outcome of a <see cref="NoulQuestion"/> means.</summary>
 public sealed record NoulCriteria
 {
+    public NoulCriteria(string? isTrueWhen = null, string? isFalseWhen = null)
+    {
+        IsTrueWhen = isTrueWhen;
+        IsFalseWhen = isFalseWhen;
+    }
+
     [JsonPropertyName("true")]
-    public string? True { get; init; }
+    public string? IsTrueWhen { get; init; }
 
     [JsonPropertyName("false")]
-    public string? False { get; init; }
+    public string? IsFalseWhen { get; init; }
 }
 
 /// <summary>A yes/no question, answered as a probability rather than a boolean.</summary>
 public sealed class NoulQuestion : Question
 {
-    internal NoulQuestion(string name, string? instructions, string? whenTrue, string? whenFalse)
-        : base(name, instructions) =>
-        Criteria = whenTrue is null && whenFalse is null ? null : new NoulCriteria { True = whenTrue, False = whenFalse };
+    internal NoulQuestion(string name, string? instructions, NoulCriteria? criteria)
+        : base(name, instructions) => Criteria = criteria is { IsTrueWhen: null, IsFalseWhen: null } ? null : criteria;
 
     [JsonPropertyName("criteria")]
     public NoulCriteria? Criteria { get; }

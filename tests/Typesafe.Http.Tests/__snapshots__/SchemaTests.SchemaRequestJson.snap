@@ -6,6 +6,10 @@
   "questions": {
     "isBilling": {
       "type": "noul",
+      "criteria": {
+        "true": "Has billing info",
+        "false": "does not have billing info"
+      },
       "instructions": "Is this ticket about billing?"
     },
     "sentiment": {

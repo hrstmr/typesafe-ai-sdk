@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 
 namespace Typesafe.Http;
@@ -12,8 +13,27 @@ public abstract record Answer;
 /// Answer to a <see cref="NoulQuestion"/>. <see cref="Noul"/> is a probability in [0, 1],
 /// not a boolean — the model reports how strongly it leans yes.
 /// </summary>
-public sealed record NoulAnswer : Answer
+public sealed record NoulAnswer : Answer, IQuestionDeclaration
 {
+    [JsonConstructor]
+    public NoulAnswer() { }
+
+    /// <summary>Declares the question. <see cref="Noul"/> stays unset until the response is bound.</summary>
+    [SetsRequiredMembers]
+    public NoulAnswer(string? instruction, NoulCriteria? criteria = null)
+    {
+        Instruction = instruction;
+        Criteria = criteria;
+    }
+
+    /// <summary>What to ask. Only read when this instance declares a question on a questions record.</summary>
+    [JsonIgnore]
+    public string? Instruction { get; init; }
+
+    /// <summary>Optional descriptions of what a true and a false answer would mean.</summary>
+    [JsonIgnore]
+    public NoulCriteria? Criteria { get; init; }
+
     [JsonPropertyName("noul")]
     public required decimal Noul { get; init; }
 }

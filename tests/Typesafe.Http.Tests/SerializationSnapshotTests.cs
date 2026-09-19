@@ -21,7 +21,11 @@ public class SerializationSnapshotTests
         await client.SystemOneAsync(
             new Ticket("Charged twice this month", "I see two charges of $49 on my card for August."),
             [
-                Question.Noul("isBilling", "Is this ticket about billing?", whenTrue: "a charge or invoice", whenFalse: "anything else"),
+                Question.Noul(
+                    "isBilling",
+                    "Is this ticket about billing?",
+                    new NoulCriteria(isTrueWhen: "a charge or invoice", isFalseWhen: "anything else")
+                ),
                 Question.Choice("sentiment", "What is the customer's tone?", "calm", "frustrated", "angry"),
                 Question.Choice(
                     "channel",

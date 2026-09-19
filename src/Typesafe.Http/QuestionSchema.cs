@@ -16,7 +16,24 @@ internal static class QuestionSchema
     private static readonly MethodInfo ChoiceBinder = Method(nameof(BindChoice));
     private static readonly MethodInfo ScoreBinder = Method(nameof(BindScore));
 
-    public static IReadOnlyList<Question> Build(Type questionsType) => [.. Members(questionsType).Select(BuildQuestion)];
+    /// <summary>
+    /// Reads the questions off <paramref name="questions"/>. Each property's declared type says what kind
+    /// of question it is; the instance sitting in that property, when there is one, carries the instruction.
+    /// </summary>
+    public static IReadOnlyList<Question> Build(object questions)
+    {
+        var type = questions.GetType();
+
+        return
+        [
+            .. Members(type)
+                .Select(member =>
+                {
+                    var declaration = type.GetProperty(member.Name)?.GetValue(questions) as IQuestionDeclaration;
+                    return BuildQuestion(member with { Instructions = declaration?.Instruction ?? member.Instructions }, declaration);
+                }),
+        ];
+    }
 
     public static object Bind(Type questionsType, IReadOnlyDictionary<string, Answer> answers)
     {
@@ -65,18 +82,18 @@ internal static class QuestionSchema
             .. parameters.Select(parameter => new Member(
                 parameter.Name!,
                 parameter.ParameterType,
-                Describe(questionsType.GetProperty(parameter.Name!))
-                    ?? Describe(parameter)
-                    ?? Describe(EnumOf(parameter.ParameterType, typeof(ChoiceAnswer<>)) ?? EnumOf(parameter.ParameterType, typeof(ScoreAnswer<>)))
+                // Only the enum itself may describe the question here — per-property [Description]
+                // was dropped in favour of passing the instruction on the instance.
+                Describe(EnumOf(parameter.ParameterType, typeof(ChoiceAnswer<>)) ?? EnumOf(parameter.ParameterType, typeof(ScoreAnswer<>)))
             )),
         ];
     }
 
-    private static Question BuildQuestion(Member member)
+    private static Question BuildQuestion(Member member, IQuestionDeclaration? declaration)
     {
         if (member.Type == typeof(NoulAnswer))
         {
-            return Question.Noul(member.Name, member.Instructions);
+            return Question.Noul(member.Name, member.Instructions, (declaration as NoulAnswer)?.Criteria);
         }
 
         if (EnumOf(member.Type, typeof(ChoiceAnswer<>)) is { } choiceEnum)

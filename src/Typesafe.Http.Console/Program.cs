@@ -10,7 +10,19 @@ try
 {
     using var client = new TypeSafeClient();
 
-    var response = await client.SystemOneAsync(ticket, new TicketQuestions(default!, default!, default!, default!));
+    var response = await client.SystemOneAsync(
+        ticket,
+        new TicketQuestions(
+            isBilling: new(
+                instruction: "Is this ticket about billing?",
+                new(isTrueWhen: "Has billing info", isFalseWhen: "does not have billing info")
+            ),
+            sentiment: default!,
+            urgency: default!,
+            refundRisk: new(instruction: "How likely is the customer to demand a refund?")
+        )
+    );
+
     var answers = response.Answers;
 
     if (answers.isBilling.Noul > 0.5m)
@@ -48,10 +60,10 @@ catch (TypeSafeException exception)
 internal sealed record Ticket(string Subject, string Body);
 
 internal sealed record TicketQuestions(
-    [property: Description("Is this ticket about billing?")] NoulAnswer isBilling,
+    NoulAnswer isBilling,
     ChoiceAnswer<Sentiment> sentiment,
     ScoreAnswer<Urgency> urgency,
-    [property: Description("How likely is the customer to demand a refund?")] ScoreAnswer<RefundRisk> refundRisk
+    ScoreAnswer<RefundRisk> refundRisk
 );
 
 [Description("What is the customer's tone?")]
