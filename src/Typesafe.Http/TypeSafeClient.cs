@@ -1,11 +1,23 @@
-using System.Globalization;
 using System.Net;
+using System.Net.Http.Json;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Typesafe.Http;
+
+/// <summary>The body posted to SystemOne. Generic so the caller's own state type is serialized directly.</summary>
+internal sealed record SystemOneRequest<TState>
+{
+    [JsonPropertyName("state")]
+    public TState? State { get; init; }
+
+    [JsonPropertyName("questions")]
+    public required IReadOnlyDictionary<string, Question> Questions { get; init; }
+
+    [JsonPropertyName("model")]
+    public required string Model { get; init; }
+}
 
 public sealed class TypeSafeClient : IDisposable
 {
@@ -13,8 +25,6 @@ public sealed class TypeSafeClient : IDisposable
     private const string SystemOnePath = "/v1/systemone";
     private const string RequestIdHeader = "x-request-id";
     private const string SdkVersion = "0.1.0";
-
-    private static readonly JsonSerializerOptions SerializerOptions = new() { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
 
     private readonly TypeSafeClientOptions _options;
     private readonly HttpClient _http;
@@ -40,8 +50,8 @@ public sealed class TypeSafeClient : IDisposable
         _http = httpClient ?? new HttpClient { Timeout = System.Threading.Timeout.InfiniteTimeSpan };
     }
 
-    public async Task<SystemOneResult> SystemOneAsync(
-        object? state,
+    public async Task<SystemOneResult> SystemOneAsync<TState>(
+        TState state,
         IReadOnlyCollection<Question> questions,
         string? model = null,
         CancellationToken cancellationToken = default
@@ -54,16 +64,16 @@ public sealed class TypeSafeClient : IDisposable
             throw new ArgumentException("Ask at least one question.", nameof(questions));
         }
 
-        var payload = new Dictionary<string, object?>
+        var payload = new SystemOneRequest<TState>
         {
-            ["state"] = state,
-            ["questions"] = questions.ToDictionary(question => question.Name, question => question.ToPayload()),
-            ["model"] = model ?? _options.DefaultModel,
+            State = state,
+            Questions = questions.ToDictionary(question => question.Name),
+            Model = model ?? _options.DefaultModel,
         };
 
         using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(_options.BaseUrl, SystemOnePath))
         {
-            Content = new StringContent(JsonSerializer.Serialize(payload, SerializerOptions), Encoding.UTF8, "application/json"),
+            Content = JsonContent.Create(payload, options: TypeSafeJsonOptions.Default),
         };
 
         request.Headers.TryAddWithoutValidation("Authorization", $"Bearer {_apiKey}");
@@ -108,7 +118,15 @@ public sealed class TypeSafeClient : IDisposable
             throw ApiException.FromResponse(status, body, requestId, retryAfter);
         }
 
-        return Decode(body, questions);
+        try
+        {
+            return JsonSerializer.Deserialize<SystemOneResult>(body, TypeSafeJsonOptions.Default)
+                ?? throw new TypeSafeException("The API returned an empty response.");
+        }
+        catch (JsonException exception)
+        {
+            throw new TypeSafeException("The API returned a response this SDK could not read.", exception);
+        }
     }
 
     public void Dispose()
@@ -117,89 +135,5 @@ public sealed class TypeSafeClient : IDisposable
         {
             _http.Dispose();
         }
-    }
-
-    private static SystemOneResult Decode(string body, IReadOnlyCollection<Question> questions)
-    {
-        try
-        {
-            using var document = JsonDocument.Parse(body);
-            var root = document.RootElement;
-            var answersElement = root.GetProperty("answers");
-
-            var answers = new Dictionary<string, Answer>(questions.Count);
-
-            foreach (var question in questions)
-            {
-                answers[question.Name] = DecodeAnswer(question, answersElement.GetProperty(question.Name));
-            }
-
-            var usageElement = root.GetProperty("usage");
-            var usage = new Usage(usageElement.GetProperty("input_tokens").GetInt32(), usageElement.GetProperty("output_tokens").GetInt32());
-
-            return new SystemOneResult(root.GetProperty("model").GetString() ?? string.Empty, usage, answers);
-        }
-        catch (Exception exception) when (exception is JsonException or KeyNotFoundException or InvalidOperationException or FormatException)
-        {
-            throw new TypeSafeException("The API returned a response this SDK could not read.", exception);
-        }
-    }
-
-    private static Answer DecodeAnswer(Question question, JsonElement element) =>
-        question switch
-        {
-            NoulQuestion => new NoulAnswer(element.GetProperty("noul").GetDouble()),
-
-            ChoiceQuestion => new ChoiceAnswer(
-                element.GetProperty("choice").GetString() ?? string.Empty,
-                element.GetProperty("confidence").GetDouble(),
-                ReadLabelledProbabilities(element.GetProperty("probabilities"))
-            ),
-
-            ScoreQuestion => new ScoreAnswer(
-                element.GetProperty("score").GetDouble(),
-                element.GetProperty("confidence").GetDouble(),
-                ReadLegend(element.GetProperty("legend")),
-                ReadScoredProbabilities(element.GetProperty("probabilities"))
-            ),
-
-            _ => throw new TypeSafeException($"Unsupported question type '{question.Type}'."),
-        };
-
-    private static Dictionary<string, double> ReadLabelledProbabilities(JsonElement element)
-    {
-        var probabilities = new Dictionary<string, double>();
-
-        foreach (var property in element.EnumerateObject())
-        {
-            probabilities[property.Name] = property.Value.GetDouble();
-        }
-
-        return probabilities;
-    }
-
-    private static Dictionary<int, double> ReadScoredProbabilities(JsonElement element)
-    {
-        var probabilities = new Dictionary<int, double>();
-
-        foreach (var property in element.EnumerateObject())
-        {
-            probabilities[int.Parse(property.Name, CultureInfo.InvariantCulture)] = property.Value.GetDouble();
-        }
-
-        return probabilities;
-    }
-
-    private static Dictionary<int, string?> ReadLegend(JsonElement element)
-    {
-        var legend = new Dictionary<int, string?>();
-
-        foreach (var property in element.EnumerateObject())
-        {
-            legend[int.Parse(property.Name, CultureInfo.InvariantCulture)] =
-                property.Value.ValueKind == JsonValueKind.String ? property.Value.GetString() : property.Value.ToString();
-        }
-
-        return legend;
     }
 }

@@ -1,87 +1,77 @@
+using System.Text.Json.Serialization;
+
 namespace Typesafe.Http;
 
-public abstract class Answer
-{
-    private protected Answer(string type) => Type = type;
-
-    public string Type { get; }
-}
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(NoulAnswer), "noul")]
+[JsonDerivedType(typeof(ChoiceAnswer), "choice")]
+[JsonDerivedType(typeof(ScoreAnswer), "score")]
+public abstract record Answer;
 
 /// <summary>
 /// Answer to a <see cref="NoulQuestion"/>. <see cref="Noul"/> is a probability in [0, 1],
 /// not a boolean — the model reports how strongly it leans yes.
 /// </summary>
-public sealed class NoulAnswer : Answer
+public sealed record NoulAnswer : Answer
 {
-    internal NoulAnswer(double noul)
-        : base("noul") => Noul = noul;
-
-    public double Noul { get; }
+    [JsonPropertyName("noul")]
+    public required double Noul { get; init; }
 }
 
-public sealed class ChoiceAnswer : Answer
+public sealed record ChoiceAnswer : Answer
 {
-    internal ChoiceAnswer(string choice, double confidence, IReadOnlyDictionary<string, double> probabilities)
-        : base("choice")
-    {
-        Choice = choice;
-        Confidence = confidence;
-        Probabilities = probabilities;
-    }
-
     /// <summary>The selected label, one of the keys of the question's criteria.</summary>
-    public string Choice { get; }
+    [JsonPropertyName("choice")]
+    public required string Choice { get; init; }
 
-    public double Confidence { get; }
+    [JsonPropertyName("confidence")]
+    public required double Confidence { get; init; }
 
-    public IReadOnlyDictionary<string, double> Probabilities { get; }
+    [JsonPropertyName("probabilities")]
+    public required IReadOnlyDictionary<string, double> Probabilities { get; init; }
 }
 
-public sealed class ScoreAnswer : Answer
+public sealed record ScoreAnswer : Answer
 {
-    internal ScoreAnswer(double score, double confidence, IReadOnlyDictionary<int, string?> legend, IReadOnlyDictionary<int, double> probabilities)
-        : base("score")
-    {
-        Score = score;
-        Confidence = confidence;
-        Legend = legend;
-        Probabilities = probabilities;
-    }
-
     /// <summary>Position on the rubric. Fractional, because it is a probability-weighted mean.</summary>
-    public double Score { get; }
+    [JsonPropertyName("score")]
+    public required double Score { get; init; }
 
-    public double Confidence { get; }
+    [JsonPropertyName("confidence")]
+    public required double Confidence { get; init; }
 
     /// <summary>Rubric index to its description, echoed back so a score can be reported in words.</summary>
-    public IReadOnlyDictionary<int, string?> Legend { get; }
+    [JsonPropertyName("legend")]
+    public required IReadOnlyDictionary<int, string> Legend { get; init; }
 
-    public IReadOnlyDictionary<int, double> Probabilities { get; }
+    [JsonPropertyName("probabilities")]
+    public required IReadOnlyDictionary<int, double> Probabilities { get; init; }
 }
 
-public sealed record Usage(int InputTokens, int OutputTokens);
+public sealed record Usage
+{
+    [JsonPropertyName("input_tokens")]
+    public required int InputTokens { get; init; }
+
+    [JsonPropertyName("output_tokens")]
+    public required int OutputTokens { get; init; }
+}
 
 /// <summary>
 /// Answers to one SystemOne call. Index it with the same question objects that were asked:
 /// each indexer overload is typed to its question, so the answer type is known at compile time.
 /// </summary>
-public sealed class SystemOneResult
+public sealed record SystemOneResult
 {
-    private readonly IReadOnlyDictionary<string, Answer> _answers;
-
-    internal SystemOneResult(string model, Usage usage, IReadOnlyDictionary<string, Answer> answers)
-    {
-        Model = model;
-        Usage = usage;
-        _answers = answers;
-    }
-
-    public string Model { get; }
-
-    public Usage Usage { get; }
+    [JsonPropertyName("model")]
+    public required string Model { get; init; }
 
     /// <summary>Answers keyed by question name, for when the question objects are not at hand.</summary>
-    public IReadOnlyDictionary<string, Answer> Answers => _answers;
+    [JsonPropertyName("answers")]
+    public required IReadOnlyDictionary<string, Answer> Answers { get; init; }
+
+    [JsonPropertyName("usage")]
+    public required Usage Usage { get; init; }
 
     public NoulAnswer this[NoulQuestion question] => Lookup<NoulAnswer>(question);
 
@@ -94,12 +84,14 @@ public sealed class SystemOneResult
     {
         ArgumentNullException.ThrowIfNull(question);
 
-        if (!_answers.TryGetValue(question.Name, out var answer))
+        if (!Answers.TryGetValue(question.Name, out var answer))
         {
             throw new KeyNotFoundException($"The response contained no answer named '{question.Name}'.");
         }
 
         return answer as TAnswer
-            ?? throw new InvalidOperationException($"Answer '{question.Name}' is a {answer.Type} answer, which does not match the question asked.");
+            ?? throw new InvalidOperationException(
+                $"Answer '{question.Name}' came back as {answer.GetType().Name}, which does not match the question asked."
+            );
     }
 }
