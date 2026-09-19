@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Typesafe.Http.Console/Typesafe.Http.Console.csproj" />
+    <Project Path="src/Typesafe.Http/Typesafe.Http.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Typesafe.Http.Tests/Typesafe.Http.Tests.csproj" />
+  </Folder>
+</Solution>
