@@ -3,8 +3,7 @@ using Typesafe.Http;
 var ticket = new
 {
     subject = "Charged twice this month",
-    body = "Hi, I see two charges of $49 on my card for August. I only have one account. "
-        + "Please fix this ASAP, I'm pretty frustrated.",
+    body = "Hi, I see two charges of $49 on my card for August. I only have one account. " + "Please fix this ASAP, I'm pretty frustrated.",
 };
 
 var isBilling = Question.Noul("isBilling", "Is this ticket about billing?");
@@ -29,8 +28,7 @@ try
 }
 catch (ApiException exception)
 {
-    Console.Error.WriteLine(
-        $"API error {(int)exception.Status} (request {exception.RequestId ?? "unknown"}): {exception.Body}");
+    Console.Error.WriteLine($"API error {(int)exception.Status} (request {exception.RequestId ?? "unknown"}): {exception.Body}");
 }
 catch (TypeSafeException exception)
 {

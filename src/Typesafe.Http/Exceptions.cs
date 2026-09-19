@@ -5,9 +5,7 @@ namespace Typesafe.Http;
 public class TypeSafeException : Exception
 {
     public TypeSafeException(string message, Exception? innerException = null)
-        : base(message, innerException)
-    {
-    }
+        : base(message, innerException) { }
 }
 
 /// <summary>The API returned a non-success status.</summary>
@@ -27,11 +25,8 @@ public class ApiException : TypeSafeException
 
     public string? RequestId { get; }
 
-    internal static ApiException FromResponse(
-        HttpStatusCode status,
-        string? body,
-        string? requestId,
-        TimeSpan? retryAfter) => status switch
+    internal static ApiException FromResponse(HttpStatusCode status, string? body, string? requestId, TimeSpan? retryAfter) =>
+        status switch
         {
             HttpStatusCode.BadRequest => new BadRequestException(status, body, requestId),
             HttpStatusCode.Unauthorized => new AuthenticationException(status, body, requestId),
@@ -47,49 +42,37 @@ public class ApiException : TypeSafeException
 public sealed class BadRequestException : ApiException
 {
     internal BadRequestException(HttpStatusCode status, string? body, string? requestId)
-        : base(status, body, requestId)
-    {
-    }
+        : base(status, body, requestId) { }
 }
 
 public sealed class AuthenticationException : ApiException
 {
     internal AuthenticationException(HttpStatusCode status, string? body, string? requestId)
-        : base(status, body, requestId)
-    {
-    }
+        : base(status, body, requestId) { }
 }
 
 public sealed class PermissionDeniedException : ApiException
 {
     internal PermissionDeniedException(HttpStatusCode status, string? body, string? requestId)
-        : base(status, body, requestId)
-    {
-    }
+        : base(status, body, requestId) { }
 }
 
 public sealed class NotFoundException : ApiException
 {
     internal NotFoundException(HttpStatusCode status, string? body, string? requestId)
-        : base(status, body, requestId)
-    {
-    }
+        : base(status, body, requestId) { }
 }
 
 public sealed class UnprocessableEntityException : ApiException
 {
     internal UnprocessableEntityException(HttpStatusCode status, string? body, string? requestId)
-        : base(status, body, requestId)
-    {
-    }
+        : base(status, body, requestId) { }
 }
 
 public sealed class InternalServerException : ApiException
 {
     internal InternalServerException(HttpStatusCode status, string? body, string? requestId)
-        : base(status, body, requestId)
-    {
-    }
+        : base(status, body, requestId) { }
 }
 
 public sealed class RateLimitException : ApiException
@@ -105,9 +88,7 @@ public sealed class RateLimitException : ApiException
 public class ApiConnectionException : TypeSafeException
 {
     public ApiConnectionException(string message, Exception? innerException = null)
-        : base(message, innerException)
-    {
-    }
+        : base(message, innerException) { }
 }
 
 public sealed class ApiTimeoutException : ApiConnectionException

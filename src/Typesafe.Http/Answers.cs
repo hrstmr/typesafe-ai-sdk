@@ -39,11 +39,7 @@ public sealed class ChoiceAnswer : Answer
 
 public sealed class ScoreAnswer : Answer
 {
-    internal ScoreAnswer(
-        double score,
-        double confidence,
-        IReadOnlyDictionary<int, string?> legend,
-        IReadOnlyDictionary<int, double> probabilities)
+    internal ScoreAnswer(double score, double confidence, IReadOnlyDictionary<int, string?> legend, IReadOnlyDictionary<int, double> probabilities)
         : base("score")
     {
         Score = score;
@@ -104,7 +100,6 @@ public sealed class SystemOneResult
         }
 
         return answer as TAnswer
-            ?? throw new InvalidOperationException(
-                $"Answer '{question.Name}' is a {answer.Type} answer, which does not match the question asked.");
+            ?? throw new InvalidOperationException($"Answer '{question.Name}' is a {answer.Type} answer, which does not match the question asked.");
     }
 }

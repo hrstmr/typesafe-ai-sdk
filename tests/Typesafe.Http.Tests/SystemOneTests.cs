@@ -51,7 +51,9 @@ public class SystemOneTests
         var sentiment = Question.Choice("sentiment", "What is the tone?", "calm", "frustrated");
         var urgency = Question.Score("urgency", "How urgent?", "can wait", "today", "right now");
 
-        var handler = new StubHandler(HttpStatusCode.OK, """
+        var handler = new StubHandler(
+            HttpStatusCode.OK,
+            """
             {
               "model": "jev-latest",
               "answers": {
@@ -72,7 +74,8 @@ public class SystemOneTests
               },
               "usage": { "input_tokens": 120, "output_tokens": 45 }
             }
-            """);
+            """
+        );
 
         using var client = new TypeSafeClient(Options, new HttpClient(handler));
 
@@ -118,8 +121,7 @@ public class SystemOneTests
         var handler = new StubHandler(status, """{"error":"nope"}""");
         using var client = new TypeSafeClient(Options, new HttpClient(handler));
 
-        var thrown = await Assert.ThrowsAnyAsync<ApiException>(
-            () => client.SystemOneAsync(null, [Question.Noul("isBilling")]));
+        var thrown = await Assert.ThrowsAnyAsync<ApiException>(() => client.SystemOneAsync(null, [Question.Noul("isBilling")]));
 
         Assert.IsType(expected, thrown);
         Assert.Equal(status, thrown.Status);
@@ -146,17 +148,17 @@ public class SystemOneTests
         var handler = new StubHandler(HttpStatusCode.OK, """{"model":"jev-latest"}""");
         using var client = new TypeSafeClient(Options, new HttpClient(handler));
 
-        await Assert.ThrowsAsync<TypeSafeException>(
-            () => client.SystemOneAsync(null, [Question.Noul("isBilling")]));
+        await Assert.ThrowsAsync<TypeSafeException>(() => client.SystemOneAsync(null, [Question.Noul("isBilling")]));
     }
 
-    private static string EmptyAnswerFor(string name) => $$"""
-        {
-          "model": "jev-2",
-          "answers": { "{{name}}": { "type": "noul", "noul": 0.5 } },
-          "usage": { "input_tokens": 1, "output_tokens": 1 }
-        }
-        """;
+    private static string EmptyAnswerFor(string name) =>
+        $$"""
+            {
+              "model": "jev-2",
+              "answers": { "{{name}}": { "type": "noul", "noul": 0.5 } },
+              "usage": { "input_tokens": 1, "output_tokens": 1 }
+            }
+            """;
 
     private sealed class StubHandler(HttpStatusCode status, string body) : HttpMessageHandler
     {
@@ -164,19 +166,12 @@ public class SystemOneTests
 
         public string? RequestBody { get; private set; }
 
-        protected override async Task<HttpResponseMessage> SendAsync(
-            HttpRequestMessage request,
-            CancellationToken cancellationToken)
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Request = request;
-            RequestBody = request.Content is null
-                ? null
-                : await request.Content.ReadAsStringAsync(cancellationToken);
+            RequestBody = request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken);
 
-            return new HttpResponseMessage(status)
-            {
-                Content = new StringContent(body, Encoding.UTF8, "application/json"),
-            };
+            return new HttpResponseMessage(status) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
         }
     }
 }

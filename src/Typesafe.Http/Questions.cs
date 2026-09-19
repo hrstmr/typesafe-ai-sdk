@@ -23,22 +23,16 @@ public abstract class Question
 
     internal abstract Dictionary<string, object?> ToPayload();
 
-    public static NoulQuestion Noul(
-        string name,
-        object? instructions = null,
-        object? whenTrue = null,
-        object? whenFalse = null) => new(name, instructions, whenTrue, whenFalse);
+    public static NoulQuestion Noul(string name, object? instructions = null, object? whenTrue = null, object? whenFalse = null) =>
+        new(name, instructions, whenTrue, whenFalse);
 
     public static ChoiceQuestion Choice(string name, object? instructions, params string[] labels) =>
         new(name, instructions, labels.ToDictionary(label => label, _ => (object?)null));
 
-    public static ChoiceQuestion Choice(
-        string name,
-        object? instructions,
-        IReadOnlyDictionary<string, object?> criteria) => new(name, instructions, criteria);
+    public static ChoiceQuestion Choice(string name, object? instructions, IReadOnlyDictionary<string, object?> criteria) =>
+        new(name, instructions, criteria);
 
-    public static ScoreQuestion Score(string name, object? instructions, params string[] rubric) =>
-        new(name, instructions, rubric);
+    public static ScoreQuestion Score(string name, object? instructions, params string[] rubric) => new(name, instructions, rubric);
 
     private protected Dictionary<string, object?> BasePayload()
     {
@@ -75,11 +69,7 @@ public sealed class NoulQuestion : Question
 
         if (WhenTrue is not null || WhenFalse is not null)
         {
-            payload["criteria"] = new Dictionary<string, object?>
-            {
-                ["true"] = WhenTrue,
-                ["false"] = WhenFalse,
-            };
+            payload["criteria"] = new Dictionary<string, object?> { ["true"] = WhenTrue, ["false"] = WhenFalse };
         }
 
         return payload;

@@ -14,10 +14,7 @@ public sealed class TypeSafeClient : IDisposable
     private const string RequestIdHeader = "x-request-id";
     private const string SdkVersion = "0.1.0";
 
-    private static readonly JsonSerializerOptions SerializerOptions = new()
-    {
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-    };
+    private static readonly JsonSerializerOptions SerializerOptions = new() { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
 
     private readonly TypeSafeClientOptions _options;
     private readonly HttpClient _http;
@@ -28,11 +25,13 @@ public sealed class TypeSafeClient : IDisposable
     {
         _options = options ?? new TypeSafeClientOptions();
 
-        _apiKey = _options.ApiKey
+        _apiKey =
+            _options.ApiKey
             ?? Environment.GetEnvironmentVariable(ApiKeyEnvironmentVariable)
             ?? throw new TypeSafeException(
                 $"No API key was supplied. Set {nameof(TypeSafeClientOptions)}.{nameof(TypeSafeClientOptions.ApiKey)} "
-                + $"or the {ApiKeyEnvironmentVariable} environment variable.");
+                    + $"or the {ApiKeyEnvironmentVariable} environment variable."
+            );
 
         _ownsHttpClient = httpClient is null;
 
@@ -45,7 +44,8 @@ public sealed class TypeSafeClient : IDisposable
         object? state,
         IReadOnlyCollection<Question> questions,
         string? model = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         ArgumentNullException.ThrowIfNull(questions);
 
@@ -63,10 +63,7 @@ public sealed class TypeSafeClient : IDisposable
 
         using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(_options.BaseUrl, SystemOnePath))
         {
-            Content = new StringContent(
-                JsonSerializer.Serialize(payload, SerializerOptions),
-                Encoding.UTF8,
-                "application/json"),
+            Content = new StringContent(JsonSerializer.Serialize(payload, SerializerOptions), Encoding.UTF8, "application/json"),
         };
 
         request.Headers.TryAddWithoutValidation("Authorization", $"Bearer {_apiKey}");
@@ -138,36 +135,36 @@ public sealed class TypeSafeClient : IDisposable
             }
 
             var usageElement = root.GetProperty("usage");
-            var usage = new Usage(
-                usageElement.GetProperty("input_tokens").GetInt32(),
-                usageElement.GetProperty("output_tokens").GetInt32());
+            var usage = new Usage(usageElement.GetProperty("input_tokens").GetInt32(), usageElement.GetProperty("output_tokens").GetInt32());
 
             return new SystemOneResult(root.GetProperty("model").GetString() ?? string.Empty, usage, answers);
         }
-        catch (Exception exception)
-            when (exception is JsonException or KeyNotFoundException or InvalidOperationException or FormatException)
+        catch (Exception exception) when (exception is JsonException or KeyNotFoundException or InvalidOperationException or FormatException)
         {
             throw new TypeSafeException("The API returned a response this SDK could not read.", exception);
         }
     }
 
-    private static Answer DecodeAnswer(Question question, JsonElement element) => question switch
-    {
-        NoulQuestion => new NoulAnswer(element.GetProperty("noul").GetDouble()),
+    private static Answer DecodeAnswer(Question question, JsonElement element) =>
+        question switch
+        {
+            NoulQuestion => new NoulAnswer(element.GetProperty("noul").GetDouble()),
 
-        ChoiceQuestion => new ChoiceAnswer(
-            element.GetProperty("choice").GetString() ?? string.Empty,
-            element.GetProperty("confidence").GetDouble(),
-            ReadLabelledProbabilities(element.GetProperty("probabilities"))),
+            ChoiceQuestion => new ChoiceAnswer(
+                element.GetProperty("choice").GetString() ?? string.Empty,
+                element.GetProperty("confidence").GetDouble(),
+                ReadLabelledProbabilities(element.GetProperty("probabilities"))
+            ),
 
-        ScoreQuestion => new ScoreAnswer(
-            element.GetProperty("score").GetDouble(),
-            element.GetProperty("confidence").GetDouble(),
-            ReadLegend(element.GetProperty("legend")),
-            ReadScoredProbabilities(element.GetProperty("probabilities"))),
+            ScoreQuestion => new ScoreAnswer(
+                element.GetProperty("score").GetDouble(),
+                element.GetProperty("confidence").GetDouble(),
+                ReadLegend(element.GetProperty("legend")),
+                ReadScoredProbabilities(element.GetProperty("probabilities"))
+            ),
 
-        _ => throw new TypeSafeException($"Unsupported question type '{question.Type}'."),
-    };
+            _ => throw new TypeSafeException($"Unsupported question type '{question.Type}'."),
+        };
 
     private static Dictionary<string, double> ReadLabelledProbabilities(JsonElement element)
     {
@@ -199,9 +196,8 @@ public sealed class TypeSafeClient : IDisposable
 
         foreach (var property in element.EnumerateObject())
         {
-            legend[int.Parse(property.Name, CultureInfo.InvariantCulture)] = property.Value.ValueKind == JsonValueKind.String
-                ? property.Value.GetString()
-                : property.Value.ToString();
+            legend[int.Parse(property.Name, CultureInfo.InvariantCulture)] =
+                property.Value.ValueKind == JsonValueKind.String ? property.Value.GetString() : property.Value.ToString();
         }
 
         return legend;
