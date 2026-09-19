@@ -1,0 +1,39 @@
+﻿{
+  "Model": "jev-latest",
+  "Answers": {
+    "isBilling": {
+      "Noul": 0.93
+    },
+    "sentiment": {
+      "Choice": "Frustrated",
+      "Confidence": 0.81,
+      "Probabilities": {
+        "Calm": 0.19,
+        "Frustrated": 0.81,
+        "Angry": 0.0
+      },
+      "HighestProbability": "Frustrated"
+    },
+    "urgency": {
+      "Score": 1.7,
+      "Confidence": 0.62,
+      "Legend": {
+        "CanWait": "can wait",
+        "ThisWeek": "this week",
+        "Today": "today",
+        "RightNow": "right now"
+      },
+      "Probabilities": {
+        "CanWait": 0.1,
+        "ThisWeek": 0.2,
+        "Today": 0.6,
+        "RightNow": 0.1
+      },
+      "HighestProbability": "Today"
+    }
+  },
+  "Usage": {
+    "InputTokens": 120,
+    "OutputTokens": 45
+  }
+}

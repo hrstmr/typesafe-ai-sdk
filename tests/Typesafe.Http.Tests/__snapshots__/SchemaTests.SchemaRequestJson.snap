@@ -1,0 +1,32 @@
+﻿{
+  "state": {
+    "Subject": "Charged twice this month",
+    "Body": "Two charges of $49."
+  },
+  "questions": {
+    "isBilling": {
+      "type": "noul",
+      "instructions": "Is this ticket about billing?"
+    },
+    "sentiment": {
+      "type": "choice",
+      "criteria": {
+        "Calm": "matter of fact, no strong feeling",
+        "Frustrated": "annoyed but still civil",
+        "Angry": "openly hostile"
+      },
+      "instructions": "What is the customer's tone?"
+    },
+    "urgency": {
+      "type": "score",
+      "criteria": [
+        "can wait",
+        "this week",
+        "today",
+        "right now"
+      ],
+      "instructions": "How urgent is this ticket?"
+    }
+  },
+  "model": "jev-latest"
+}

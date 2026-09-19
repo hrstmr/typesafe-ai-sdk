@@ -1,6 +1,7 @@
 using System.Collections;
 using System.ComponentModel;
 using System.Reflection;
+using System.Runtime.ExceptionServices;
 
 namespace Typesafe.Http;
 
@@ -107,17 +108,30 @@ internal static class QuestionSchema
 
         if (EnumOf(member.Type, typeof(ChoiceAnswer<>)) is { } choiceEnum)
         {
-            var wire = answer as ChoiceAnswer ?? throw Mismatch(member, answer);
-            return ChoiceBinder.MakeGenericMethod(choiceEnum).Invoke(null, [wire])!;
+            return Invoke(ChoiceBinder, choiceEnum, answer as ChoiceAnswer ?? throw Mismatch(member, answer));
         }
 
         if (EnumOf(member.Type, typeof(ScoreAnswer<>)) is { } scoreEnum)
         {
-            var wire = answer as ScoreAnswer ?? throw Mismatch(member, answer);
-            return ScoreBinder.MakeGenericMethod(scoreEnum).Invoke(null, [wire])!;
+            return Invoke(ScoreBinder, scoreEnum, answer as ScoreAnswer ?? throw Mismatch(member, answer));
         }
 
         throw Mismatch(member, answer);
+    }
+
+    // Reflection wraps anything the binder throws in a TargetInvocationException, which would
+    // bury the message explaining what was actually wrong with the response.
+    private static object Invoke(MethodInfo binder, Type enumType, Answer wire)
+    {
+        try
+        {
+            return binder.MakeGenericMethod(enumType).Invoke(null, [wire])!;
+        }
+        catch (TargetInvocationException exception) when (exception.InnerException is not null)
+        {
+            ExceptionDispatchInfo.Capture(exception.InnerException).Throw();
+            throw;
+        }
     }
 
     private static ChoiceAnswer<TEnum> BindChoice<TEnum>(ChoiceAnswer wire)
