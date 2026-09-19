@@ -1,0 +1,44 @@
+﻿{
+  "state": {
+    "Subject": "Charged twice this month",
+    "Body": "I see two charges of $49 on my card for August."
+  },
+  "questions": {
+    "isBilling": {
+      "type": "noul",
+      "criteria": {
+        "true": "a charge or invoice",
+        "false": "anything else"
+      },
+      "instructions": "Is this ticket about billing?"
+    },
+    "sentiment": {
+      "type": "choice",
+      "criteria": {
+        "calm": null,
+        "frustrated": null,
+        "angry": null
+      },
+      "instructions": "What is the customer's tone?"
+    },
+    "channel": {
+      "type": "choice",
+      "criteria": {
+        "email": "an inbound email",
+        "chat": "the in-app chat widget"
+      },
+      "instructions": "Where did this come from?"
+    },
+    "urgency": {
+      "type": "score",
+      "criteria": [
+        "can wait",
+        "this week",
+        "today",
+        "right now"
+      ],
+      "instructions": "How urgent is this ticket?"
+    }
+  },
+  "model": "jev-latest"
+}

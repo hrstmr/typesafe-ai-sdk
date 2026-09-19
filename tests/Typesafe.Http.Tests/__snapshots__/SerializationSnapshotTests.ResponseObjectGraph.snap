@@ -1,0 +1,34 @@
+﻿{
+  "Model": "jev-latest",
+  "Answers": {
+    "isBilling": {
+      "Noul": 0.93
+    },
+    "sentiment": {
+      "Choice": "frustrated",
+      "Confidence": 0.81,
+      "Probabilities": {
+        "calm": 0.19,
+        "frustrated": 0.81
+      }
+    },
+    "urgency": {
+      "Score": 1.7,
+      "Confidence": 0.62,
+      "Legend": {
+        "0": "can wait",
+        "1": "today",
+        "2": "right now"
+      },
+      "Probabilities": {
+        "0": 0.1,
+        "1": 0.5,
+        "2": 0.4
+      }
+    }
+  },
+  "Usage": {
+    "InputTokens": 120,
+    "OutputTokens": 45
+  }
+}

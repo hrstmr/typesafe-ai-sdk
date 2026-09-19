@@ -4,6 +4,23 @@ using System.Text.Json;
 
 namespace Typesafe.Http.Tests;
 
+internal sealed record Ticket(string Subject, string Body);
+
+internal sealed class StubHandler(HttpStatusCode status, string body) : HttpMessageHandler
+{
+    public HttpRequestMessage? Request { get; private set; }
+
+    public string? RequestBody { get; private set; }
+
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        Request = request;
+        RequestBody = request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken);
+
+        return new HttpResponseMessage(status) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
+    }
+}
+
 public class QuestionTests
 {
     [Fact]
@@ -32,11 +49,12 @@ public class QuestionTests
     [Fact]
     public void NoulOmitsCriteriaUnlessOutcomesAreDescribed()
     {
-        Assert.False(Question.Noul("isBilling", "About billing?").ToPayload().ContainsKey("criteria"));
+        Assert.Null(Question.Noul("isBilling", "About billing?").Criteria);
 
-        var described = Question.Noul("isBilling", "About billing?", whenTrue: "yes it is").ToPayload();
+        var described = Question.Noul("isBilling", "About billing?", whenTrue: "yes it is");
 
-        Assert.True(described.ContainsKey("criteria"));
+        Assert.Equal("yes it is", described.Criteria!.True);
+        Assert.Null(described.Criteria.False);
     }
 }
 
@@ -51,35 +69,10 @@ public class SystemOneTests
         var sentiment = Question.Choice("sentiment", "What is the tone?", "calm", "frustrated");
         var urgency = Question.Score("urgency", "How urgent?", "can wait", "today", "right now");
 
-        var handler = new StubHandler(
-            HttpStatusCode.OK,
-            """
-            {
-              "model": "jev-latest",
-              "answers": {
-                "isBilling": { "type": "noul", "noul": 0.93 },
-                "sentiment": {
-                  "type": "choice",
-                  "choice": "frustrated",
-                  "confidence": 0.81,
-                  "probabilities": { "calm": 0.19, "frustrated": 0.81 }
-                },
-                "urgency": {
-                  "type": "score",
-                  "score": 1.7,
-                  "confidence": 0.62,
-                  "legend": { "0": "can wait", "1": "today", "2": "right now" },
-                  "probabilities": { "0": 0.1, "1": 0.5, "2": 0.4 }
-                }
-              },
-              "usage": { "input_tokens": 120, "output_tokens": 45 }
-            }
-            """
-        );
-
+        var handler = new StubHandler(HttpStatusCode.OK, SampleResponse);
         using var client = new TypeSafeClient(Options, new HttpClient(handler));
 
-        var result = await client.SystemOneAsync(new { subject = "Charged twice" }, [isBilling, sentiment, urgency]);
+        var result = await client.SystemOneAsync(new Ticket("Charged twice", "Two charges this month."), [isBilling, sentiment, urgency]);
 
         Assert.Equal("jev-latest", result.Model);
         Assert.Equal(0.93, result[isBilling].Noul);
@@ -87,7 +80,8 @@ public class SystemOneTests
         Assert.Equal(0.81, result[sentiment].Probabilities["frustrated"]);
         Assert.Equal(1.7, result[urgency].Score);
         Assert.Equal("today", result[urgency].Legend[1]);
-        Assert.Equal(new Usage(120, 45), result.Usage);
+        Assert.Equal(120, result.Usage.InputTokens);
+        Assert.Equal(45, result.Usage.OutputTokens);
 
         Assert.Equal(HttpMethod.Post, handler.Request!.Method);
         Assert.Equal("https://api.typesafe.ai/v1/systemone", handler.Request.RequestUri!.ToString());
@@ -96,16 +90,16 @@ public class SystemOneTests
         using var sent = JsonDocument.Parse(handler.RequestBody!);
         Assert.Equal("jev-latest", sent.RootElement.GetProperty("model").GetString());
         Assert.Equal("choice", sent.RootElement.GetProperty("questions").GetProperty("sentiment").GetProperty("type").GetString());
-        Assert.Equal("Charged twice", sent.RootElement.GetProperty("state").GetProperty("subject").GetString());
+        Assert.Equal("Charged twice", sent.RootElement.GetProperty("state").GetProperty("Subject").GetString());
     }
 
     [Fact]
     public async Task SendsTheModelOverrideWhenGiven()
     {
-        var handler = new StubHandler(HttpStatusCode.OK, EmptyAnswerFor("isBilling"));
+        var handler = new StubHandler(HttpStatusCode.OK, SampleResponse);
         using var client = new TypeSafeClient(Options, new HttpClient(handler));
 
-        await client.SystemOneAsync(null, [Question.Noul("isBilling")], model: "jev-2");
+        await client.SystemOneAsync<object?>(null, [Question.Noul("isBilling")], model: "jev-2");
 
         using var sent = JsonDocument.Parse(handler.RequestBody!);
         Assert.Equal("jev-2", sent.RootElement.GetProperty("model").GetString());
@@ -121,7 +115,7 @@ public class SystemOneTests
         var handler = new StubHandler(status, """{"error":"nope"}""");
         using var client = new TypeSafeClient(Options, new HttpClient(handler));
 
-        var thrown = await Assert.ThrowsAnyAsync<ApiException>(() => client.SystemOneAsync(null, [Question.Noul("isBilling")]));
+        var thrown = await Assert.ThrowsAnyAsync<ApiException>(() => client.SystemOneAsync<object?>(null, [Question.Noul("isBilling")]));
 
         Assert.IsType(expected, thrown);
         Assert.Equal(status, thrown.Status);
@@ -133,7 +127,7 @@ public class SystemOneTests
     {
         using var client = new TypeSafeClient(Options, new HttpClient(new StubHandler(HttpStatusCode.OK, "{}")));
 
-        await Assert.ThrowsAsync<ArgumentException>(() => client.SystemOneAsync(null, []));
+        await Assert.ThrowsAsync<ArgumentException>(() => client.SystemOneAsync<object?>(null, []));
     }
 
     [Fact]
@@ -143,35 +137,46 @@ public class SystemOneTests
     }
 
     [Fact]
-    public async Task SurfacesAnUnreadableResponse()
+    public async Task SurfacesAResponseMissingRequiredFields()
     {
         var handler = new StubHandler(HttpStatusCode.OK, """{"model":"jev-latest"}""");
         using var client = new TypeSafeClient(Options, new HttpClient(handler));
 
-        await Assert.ThrowsAsync<TypeSafeException>(() => client.SystemOneAsync(null, [Question.Noul("isBilling")]));
+        await Assert.ThrowsAsync<TypeSafeException>(() => client.SystemOneAsync<object?>(null, [Question.Noul("isBilling")]));
     }
 
-    private static string EmptyAnswerFor(string name) =>
-        $$"""
-            {
-              "model": "jev-2",
-              "answers": { "{{name}}": { "type": "noul", "noul": 0.5 } },
-              "usage": { "input_tokens": 1, "output_tokens": 1 }
-            }
-            """;
-
-    private sealed class StubHandler(HttpStatusCode status, string body) : HttpMessageHandler
+    [Fact]
+    public async Task RejectsAnswersThatDoNotMatchTheQuestionAsked()
     {
-        public HttpRequestMessage? Request { get; private set; }
+        var asked = Question.Choice("isBilling", "Which?", "a", "b");
+        var handler = new StubHandler(HttpStatusCode.OK, SampleResponse);
+        using var client = new TypeSafeClient(Options, new HttpClient(handler));
 
-        public string? RequestBody { get; private set; }
+        var result = await client.SystemOneAsync<object?>(null, [asked]);
 
-        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            Request = request;
-            RequestBody = request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken);
-
-            return new HttpResponseMessage(status) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
-        }
+        Assert.Throws<InvalidOperationException>(() => result[asked]);
     }
+
+    internal const string SampleResponse = """
+        {
+          "model": "jev-latest",
+          "answers": {
+            "isBilling": { "type": "noul", "noul": 0.93 },
+            "sentiment": {
+              "type": "choice",
+              "choice": "frustrated",
+              "confidence": 0.81,
+              "probabilities": { "calm": 0.19, "frustrated": 0.81 }
+            },
+            "urgency": {
+              "type": "score",
+              "score": 1.7,
+              "confidence": 0.62,
+              "legend": { "0": "can wait", "1": "today", "2": "right now" },
+              "probabilities": { "0": 0.1, "1": 0.5, "2": 0.4 }
+            }
+          },
+          "usage": { "input_tokens": 120, "output_tokens": 45 }
+        }
+        """;
 }
